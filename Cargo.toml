@@ -1,0 +1,18 @@
+[package]
+name = "basicdropper"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[profile.release]
+#codegen-units = 1
+#strip = true
+#opt-level = "z"
+#lto = true
+#panic = "abort"
+
+[dependencies]
+minreq = { version = "2.11.0", features = ["https"]}
+winapi = { version = "0.3.9", features = ["shellapi", "winuser"] }
+rand = "0.8.5"
