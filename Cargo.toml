@@ -2,17 +2,22 @@
 name = "basicdropper"
 version = "0.1.0"
 edition = "2021"
+author = "TaChan"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [profile.release]
-#codegen-units = 1
-#strip = true
-#opt-level = "z"
-#lto = true
-#panic = "abort"
+codegen-units = 1
+strip = true
+opt-level = "z"
+lto = true
+panic = "abort"
+
+[build-dependencies]
+static_vcruntime = "2.0"
 
 [dependencies]
 minreq = { version = "2.11.0", features = ["https"]}
 winapi = { version = "0.3.9", features = ["shellapi", "winuser"] }
 rand = "0.8.5"
+static_vcruntime = "2.0.0"
